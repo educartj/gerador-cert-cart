@@ -208,32 +208,6 @@
             }
         };		
 
-        const check_course_tab = () => {
-            const certificateType = $('input[name="certificate_type"]:checked').val();
-            logMessage(`Verificando aba curso - Tipo de certificado: ${certificateType}`);
-            
-            if (certificateType === 'course') {
-                if (course_name.val().trim() != "" && course_instructor.val().trim() != "" && course_date.val().trim() != "" && course_time.val().trim() != "") {
-                    $(".btn-next.course").prop('disabled', false);
-                    logMessage('Formulário certificado do curso completo - botão próximo habilitado');
-                } else {
-                    $(".btn-next.course").prop('disabled', true);
-                    logMessage('Formulário certificado do curso incompleto - botão próximo desabilitado');
-                }
-            } else if (certificateType === 'accredited') {
-                if (accredited_issue_date.val().trim() != "" && accredited_issue_time.val().trim() != "" && accredited_validity_period.val().trim() != "") {
-                    $(".btn-next.course").prop('disabled', false);
-                    logMessage('Formulário certificado do credenciamento completo - botão próximo habilitado');
-                } else {
-                    $(".btn-next.course").prop('disabled', true);
-                    logMessage('Formulário certificado do credenciamento incompleto - botão próximo desabilitado');
-                }
-            } else {
-                $(".btn-next.course").prop('disabled', true);
-                logMessage('Nenhum tipo de certificado selecionado');
-            }
-        };
-
         // ==================== SALVAMENTO DE DADOS ====================
         const save_data_on_change_tab = (previus_tab) => {
             try {
@@ -732,35 +706,7 @@
             logMessage('Botão de importação clicado');
             $('#form_import').slideToggle();
         });
-
-		const check_course_tab = () => {
-			const certificateType = $('input[name="certificate_type"]:checked').val();
-			logMessage(`Verificando aba curso - Tipo de certificado: ${certificateType}`);
-			
-			if (certificateType === 'course') {
-				if (course_name.val().trim() != "" && course_instructor.val().trim() != "" && course_date.val().trim() != "" && course_time.val().trim() != "") {
-					$(".btn-next.course").prop('disabled', false);
-					logMessage('Formulário certificado do curso completo - botão próximo habilitado');
-				} else {
-					$(".btn-next.course").prop('disabled', true);
-					logMessage('Formulário certificado do curso incompleto - botão próximo desabilitado');
-				}
-			} else if (certificateType === 'accredited') {
-				if (accredited_issue_date.val().trim() != "" && accredited_issue_time.val().trim() != "") {
-					$(".btn-next.course").prop('disabled', false);
-					logMessage('Formulário certificado do credenciamento completo - botão próximo habilitado');
-				} else {
-					$(".btn-next.course").prop('disabled', true);
-					logMessage('Formulário certificado do credenciamento incompleto - botão próximo desabilitado');
-				}
-			} else {
-				$(".btn-next.course").prop('disabled', true);
-				logMessage('Nenhum tipo de certificado selecionado');
-			}
-		};
-
-		// Função removida - duplicata da check_course_tab
-		
+	
 		const save_data_on_change_tab = (previus_tab) => {
 			try {
 				if (!previus_tab) {
