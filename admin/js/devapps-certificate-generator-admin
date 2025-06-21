@@ -208,6 +208,531 @@
             }
         };		
 
+        const check_course_tab = () => {
+            const certificateType = $('input[name="certificate_type"]:checked').val();
+            logMessage(`Verificando aba curso - Tipo de certificado: ${certificateType}`);
+            
+            if (certificateType === 'course') {
+                if (course_name.val().trim() != "" && course_instructor.val().trim() != "" && course_date.val().trim() != "" && course_time.val().trim() != "") {
+                    $(".btn-next.course").prop('disabled', false);
+                    logMessage('Formulário certificado do curso completo - botão próximo habilitado');
+                } else {
+                    $(".btn-next.course").prop('disabled', true);
+                    logMessage('Formulário certificado do curso incompleto - botão próximo desabilitado');
+                }
+            } else if (certificateType === 'accredited') {
+                if (accredited_issue_date.val().trim() != "" && accredited_issue_time.val().trim() != "" && accredited_validity_period.val().trim() != "") {
+                    $(".btn-next.course").prop('disabled', false);
+                    logMessage('Formulário certificado do credenciamento completo - botão próximo habilitado');
+                } else {
+                    $(".btn-next.course").prop('disabled', true);
+                    logMessage('Formulário certificado do credenciamento incompleto - botão próximo desabilitado');
+                }
+            } else {
+                $(".btn-next.course").prop('disabled', true);
+                logMessage('Nenhum tipo de certificado selecionado');
+            }
+        };
+
+        // ==================== SALVAMENTO DE DADOS ====================
+        const save_data_on_change_tab = (previus_tab) => {
+            try {
+                if (!previus_tab) {
+                    logMessage('Tentativa de salvar dados sem tab anterior definida', true);
+                    return;
+                }
+                
+                const targetTab = $(previus_tab).data('target');
+                logMessage(`Salvando dados da tab: ${targetTab}`);
+                
+                switch (targetTab) {
+                    case "#pills-models":
+                        const selectedModel = $('input[name="model"]:checked').val();
+                        if (!selectedModel) {
+                            logMessage('Nenhum modelo selecionado', true);
+                        } else {
+                            sessionStorage.setItem('certificate_model', selectedModel);
+                            logMessage(`Modelo salvo: ${selectedModel}`);
+                            $(previus_tab).addClass('success');
+                        }
+                        break;
+                    case "#pills-person":
+                        try {
+                            let persons = [];
+
+                            $('#person_table tbody').find('tr').not('#empty_table').each(function (index, item) {
+                                persons.push({
+                                    fullname: $(item).find('td').eq(0).text(),
+                                    document: $(item).find('td').eq(1).text(),
+                                    email: $(item).find('td').eq(2).text(),
+                                });
+                            });
+                            
+                            if (persons.length === 0) {
+                                logMessage('Nenhuma pessoa adicionada para salvar', true);
+                            } else {
+                                sessionStorage.setItem('certificate_persons', JSON.stringify(persons));
+                                logMessage(`${persons.length} pessoas salvas no sessionStorage`);
+                            }
+                        } catch (error) {
+                            logMessage(`Erro ao salvar pessoas: ${error.message}`, true);
+                        }
+                        break;
+                    case "#pills-course":
+                        try {
+                            const certificateType = $('input[name="certificate_type"]:checked').val();
+                            logMessage(`Salvando dados - Tipo de certificado: ${certificateType}`);
+                            
+                            if (certificateType === 'course') {
+                                const courseData = {
+                                    name: course_name.val(),
+                                    instructor: course_instructor.val(),
+                                    data: course_date.val(),
+                                    locale: course_locale.val(),
+                                    time: course_time.val()
+                                };
+
+                                logMessage(`Dados do curso: ${JSON.stringify(courseData)}`);
+
+                                if (!courseData.name || !courseData.instructor || !courseData.data || !courseData.time) {
+                                    logMessage('Dados do curso incompletos', true);
+                                } else {
+                                    sessionStorage.setItem('certificate_course', JSON.stringify(courseData));
+                                    sessionStorage.removeItem('certificate_accredited');
+                                    logMessage('Dados do curso salvos no sessionStorage');
+                                }
+                            } else if (certificateType === 'accredited') {
+                                const accreditedData = {
+                                    credential_type: 'accredited',
+                                    issue_date: accredited_issue_date.val(),
+                                    issue_time: accredited_issue_time.val(),
+                                    validity_period: accredited_validity_period.val()
+                                };
+
+                                logMessage(`Dados do credenciado: ${JSON.stringify(accreditedData)}`);
+
+                                if (!accreditedData.validity_period || !accreditedData.issue_date || !accreditedData.issue_time) {
+                                    logMessage('Dados do certificado credenciado incompletos', true);
+                                } else {
+                                    sessionStorage.setItem('certificate_accredited', JSON.stringify(accreditedData));
+                                    sessionStorage.removeItem('certificate_course');
+                                    logMessage('Dados do certificado credenciado salvos');
+                                }
+                            } else {
+                                logMessage('Tipo de certificado não selecionado', true);
+                            }
+                        } catch (error) {
+                            logMessage(`Erro ao salvar dados do curso/credenciado: ${error.message}`, true);
+                        }
+                        break;
+                    default:
+                        logMessage(`Tab desconhecida: ${targetTab}`, true);
+                }
+            } catch (error) {
+                logMessage(`Erro ao salvar dados: ${error.message}`, true);
+            }
+        };
+
+        // ==================== FUNÇÕES DE DELETAR MODELO ====================
+        function deleteCertificateModel(modelCode, ajaxUrl) {
+            logMessage(`Tentativa de deletar modelo: ${modelCode}`);
+            
+            if (!confirm('Tem certeza que deseja deletar este modelo? Esta ação não pode ser desfeita.')) {
+                logMessage('Exclusão cancelada pelo usuário');
+                return;
+            }
+            
+            jQuery.ajax({
+                url: ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'delete_certificate_model',
+                    model_code: modelCode
+                },
+                dataType: 'json',
+                beforeSend: function() {
+                    logMessage(`Enviando requisição de exclusão para modelo: ${modelCode}`);
+                },
+                success: function(response) {
+                    if (response.status) {
+                        logMessage(`Modelo ${modelCode} deletado com sucesso`);
+                        alert('Modelo deletado com sucesso!');
+                        location.reload();
+                    } else {
+                        logMessage(`Erro ao deletar modelo ${modelCode}: ${response.message}`, true);
+                        alert('Erro ao deletar modelo: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    logMessage(`Erro AJAX ao deletar modelo ${modelCode}: ${error} - Status: ${status}`, true);
+                    console.error('Erro AJAX:', error);
+                    alert('Erro de comunicação com o servidor. Tente novamente.');
+                }
+            });
+        }
+
+        // ==================== PRÉVIA E GERAÇÃO ====================
+        const create_preview_generate = (target) => {
+            try {
+                if ($(target).data('target') == "#pills-generate") {
+                    logMessage('Preparando prévia para geração');
+                    $('#preview_generate tbody').html(null);
+                    
+                    let persons;
+                    try {
+                        persons = JSON.parse(sessionStorage.getItem('certificate_persons'));
+                        if (!persons || persons.length === 0) {
+                            logMessage('Nenhuma pessoa encontrada para geração', true);
+                            return;
+                        }
+                        logMessage(`${persons.length} pessoas carregadas para prévia`);
+                    } catch (error) {
+                        logMessage(`Erro ao carregar pessoas do sessionStorage: ${error.message}`, true);
+                        return;
+                    }
+
+                    persons.forEach((item, index) => {
+                        $('#preview_generate tbody').append(`
+                            <tr id="preview_${index}">
+                                <td>${(index + 1)}</td>
+                                <td>${item.fullname}</td>
+                                <td>${item.document}</td>
+                                <td>${item.email}</td>
+                                <td>
+                                    <span class="badge badge-secondary p-2">Não Iniciado</span>
+                                </td>
+                                <td>
+                                    ${(index == 0) ? '<button type="button" class="btn btn-primary btn-sm btn_generate_preview" data-index="' + index + '">Visualizar</button>' : ''}
+                                </td>
+                            </tr>
+                        `);
+                    });
+
+                    $('.btn-generate').prop('disabled', false);
+                    logMessage('Prévia de geração preparada');
+                }
+            } catch (error) {
+                logMessage(`Erro ao criar prévia: ${error.message}`, true);
+            }
+        }
+
+        const generate_ajax = (data) => {
+            logMessage(`Iniciando geração para ${data.person.fullname}`);
+            logMessage(`URL do AJAX: ${devapps_certificate_generator.ajax}`);
+            
+            return $.ajax({
+                url: devapps_certificate_generator.ajax,
+                dataType: 'JSON',
+                type: "POST",
+                data: data,
+                beforeSend: function () {
+                    $('#preview_generate tbody').find('tr').eq(data.index).find('td').eq(4).html(`
+                        <span class="badge badge-warning p-2">Processando</span>
+                    `);
+                    logMessage(`Processando certificado para ${data.person.fullname}`);
+                },
+                success: function (response) {
+                    if (response.status) {
+                        $('#preview_generate tbody').find('tr').eq(data.index).find('td').eq(4).html(`
+                            <span class="badge badge-success p-2">Concluído</span>
+                        `);
+
+                        $('#preview_generate tbody').find('tr').eq(data.index).find('td').eq(5).html(`
+                            <a href="${response.url}" class="btn btn-sm btn-success" download="${response.filename}">Download</a>
+                        `);
+                        logMessage(`Certificado gerado com sucesso para ${data.person.fullname}`);
+                    } else {
+                        $('#preview_generate tbody').find('tr').eq(data.index).find('td').eq(4).html(`
+                            <span class="badge badge-danger p-2">Erro</span>
+                        `);
+                        logMessage(`Falha no servidor: ${response.message || 'Mensagem de erro não fornecida'}`, true);
+                        alert(`Erro ao gerar certificado para ${data.person.fullname}: ${response.message || 'Erro desconhecido'}`);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    $('#preview_generate tbody').find('tr').eq(data.index).find('td').eq(4).html(`
+                        <span class="badge badge-danger p-2">Erro</span>
+                    `);
+                    logMessage(`Erro AJAX: ${error} - Status: ${status} - Resposta: ${xhr.responseText}`, true);
+                    alert(`Erro de comunicação ao gerar certificado para ${data.person.fullname}`);
+                }
+            });
+        }
+
+        const process_ajax = async (preview = 0) => {
+            try {
+                let model = sessionStorage.getItem('certificate_model');
+                let persons = JSON.parse(sessionStorage.getItem('certificate_persons'));
+                let course = JSON.parse(sessionStorage.getItem('certificate_course') || 'null');
+                let accredited = JSON.parse(sessionStorage.getItem('certificate_accredited') || 'null');
+                
+                logMessage(`Dados carregados - Modelo: ${model}, Pessoas: ${persons ? persons.length : 0}, Curso: ${course ? 'OK' : 'null'}, Credenciado: ${accredited ? 'OK' : 'null'}`);
+                
+                if (!model) {
+                    throw new Error('Modelo de certificado não selecionado');
+                }
+                
+                if (!persons || persons.length === 0) {
+                    throw new Error('Nenhuma pessoa adicionada');
+                }
+                
+                if (!course && !accredited) {
+                    throw new Error('Informações do curso ou credenciamento não preenchidas');
+                }
+                
+                logMessage(`Iniciando processo ${preview ? 'de preview' : 'completo'} com ${persons.length} pessoa(s)`);
+                
+                let count = 0;
+                for (var item of persons) {
+                    logMessage(`Processando pessoa ${count+1}/${persons.length}: ${item.fullname}`);
+                    
+                    try {
+                        await generate_ajax({
+                            action: 'generate_certificate',
+                            index: count,
+                            model: model,
+                            person: item,
+                            course: course,
+                            accredited: accredited,
+                            preview: preview
+                        });
+                    } catch (personError) {
+                        logMessage(`Erro ao processar pessoa ${item.fullname}: ${personError.message}`, true);
+                    }
+                    
+                    if (preview) {
+                        break;
+                    }
+                    count++;
+                };
+                logMessage('Processo concluído');
+            } catch (error) {
+                logMessage(`Erro no processo principal: ${error.message}`, true);
+                alert(`Erro ao processar certificados: ${error.message}`);
+                $('.btn-generate').prop('disabled', false);
+            }
+        };
+
+        // ==================== VALIDAÇÕES ====================
+        function validateField(field, isEmpty = false) {
+            const $field = $(field);
+            const value = $field.val().trim();
+            
+            if (isEmpty || value === "") {
+                $field.addClass('is-invalid').removeClass('is-valid');
+                $field.css('border-color', '#dc3545');
+                return false;
+            } else {
+                $field.addClass('is-valid').removeClass('is-invalid');
+                $field.css('border-color', '#46b450');
+                return true;
+            }
+        }
+
+        function validateEmail(field) {
+            const $field = $(field);
+            if (!$field.is(':valid') || $field.val().trim() === "") {
+                $field.addClass('is-invalid').removeClass('is-valid');
+                $field.css('border-color', '#dc3545');
+                return false;
+            } else {
+                $field.addClass('is-valid').removeClass('is-invalid');
+                $field.css('border-color', '#46b450');
+                return true;
+            }
+        }
+
+        // ==================== EVENT LISTENERS ====================
+        
+        // Navegação entre tabs
+        $('.btn-next').on('click', function (e) {
+            e.preventDefault();
+            logMessage('Clique no botão próximo');
+            var next = $('.nav-pills .active').parent().next('li').find('button');
+            next.prop('disabled', false);
+            next.trigger('click');
+        });
+
+        $('.btn-prev').on('click', function (e) {
+            e.preventDefault();
+            logMessage('Clique no botão anterior');
+            var prev = $('.nav-pills .active').parent().prev('li').find('button');
+            prev.trigger('click');
+        });
+
+        $('button[data-toggle="pill"]').on('shown.bs.tab', function (event) {
+            logMessage(`Mudança de tab para: ${$(event.target).data('target')}`);
+            create_preview_generate(event.target);
+            save_data_on_change_tab(event.relatedTarget);
+        });
+
+        // Seleção de modelo
+        $('.model-check').on('change', function (e) {
+            logMessage(`Modelo selecionado: ${$(this).val()}`);
+            $(".btn-next.models").prop('disabled', false);
+        });
+
+        // Deletar modelos
+        $('.delete-model-btn').on('click', function(e) {
+            e.preventDefault();
+            
+            const modelCode = $(this).data('code');
+            const ajaxUrl = devapps_certificate_generator.ajax;
+            
+            logMessage(`Clique no botão de deletar modelo: ${modelCode}`);
+            
+            if (modelCode && ajaxUrl) {
+                deleteCertificateModel(modelCode, ajaxUrl);
+            } else {
+                logMessage('Dados necessários para deletar modelo não encontrados', true);
+                alert('Erro: Dados necessários não encontrados.');
+            }
+        });
+
+        // Gerenciamento de tipos de certificado - Event listener unificado
+        $('input[name="certificate_type"]').on('change', function() {
+            const selectedType = $(this).val();
+            const $this = $(this);
+            
+            logMessage(`Tipo de certificado alterado para: ${selectedType}`);
+            
+            // Remove seleção anterior
+            typeOptions.removeClass('selected active');
+            
+            // Adiciona seleção atual
+            $this.closest('.type-option').addClass('selected active');
+            
+            if (selectedTypeInput.length) {
+                selectedTypeInput.val(selectedType);
+            }
+            
+            // Mostra o formulário correspondente
+            showForm(selectedType);
+            
+            // Verifica o estado da tab
+            check_course_tab();
+        });
+
+        // Gerenciamento visual de seleção de tipo (se existir)
+        typeOptions.on('click', function() {
+            const $this = $(this);
+            const radio = $this.find('input[type="radio"]');
+            const type = $this.data('type');
+            
+            if (radio.length && type) {
+                radio.prop('checked', true).trigger('change');
+            }
+        });
+
+        // ==================== VALIDAÇÕES DE CAMPOS ====================
+        
+        // Validações de pessoa
+        fullname.on('input', function () {
+            validateField(this);
+        });
+
+        document.on('input', function () {
+            validateField(this);
+        });
+
+        email.on('input', function () {
+            validateEmail(this);
+        });
+
+        // Validações para campos do curso
+        course_name.on('input', function () {
+            validateField(this);
+            check_course_tab();
+        });
+
+        course_instructor.on('input', function () {
+            validateField(this);
+            check_course_tab();
+        });
+
+        course_date.on('input', function () {
+            validateField(this);
+            check_course_tab();
+        });
+
+        course_time.on('input', function () {
+            validateField(this);
+            check_course_tab();
+        });
+        
+        // Validações para certificado credenciado
+        accredited_validity_period.on('change', function () {
+            validateField(this);
+            check_course_tab();
+        });
+
+        accredited_issue_date.on('input', function () {
+            validateField(this);
+            check_course_tab();
+        });
+        
+        accredited_issue_time.on('input', function () {
+            validateField(this);
+            check_course_tab();
+        });
+
+        // Validação em tempo real para campos obrigatórios
+        $('input[required], textarea[required]').on('input', function() {
+            validateField(this);
+        });
+
+        // ==================== GERENCIAMENTO DE PESSOAS ====================
+        
+        $('#btn_add_person').on('click', function (e) {
+            e.preventDefault();
+            logMessage('Tentativa de adicionar pessoa');
+
+            try {
+                const fullname_valid = validateField(fullname);
+                const document_valid = validateField(document);
+                const email_valid = validateEmail(email);
+
+                if (fullname_valid && document_valid && email_valid) {
+                    create_tr_person(fullname.val(), document.val(), email.val());
+                    clear_person_form();
+                    toggle_empty_message();
+                    logMessage(`Pessoa adicionada com sucesso: ${fullname.val()}`);
+                } else {
+                    logMessage('Validação falhou ao adicionar pessoa', true);
+                }
+            } catch (error) {
+                logMessage(`Erro ao adicionar pessoa: ${error.message}`, true);
+            }
+        });
+
+        $('body').on('click', '.btn_remove', function (e) {
+            e.preventDefault();
+            const code = $(this).data('code');
+            logMessage(`Removendo pessoa com código: ${code}`);
+            $('#person_table tbody').find(`#${code}`).remove();
+            toggle_empty_message();
+        });
+
+        // ==================== UPLOAD DE ARQUIVOS ====================
+        
+        $('#upload_model_file').on('change', function () {
+            var fileName = $(this).val();
+            $(this).next('.custom-file-label').html(fileName);
+            logMessage(`Arquivo de modelo selecionado: ${fileName}`);
+        });
+
+        $('#person_importer_file').on('change', function () {
+            var fileName = $(this).val();
+            $(this).next('.custom-file-label').html(fileName);
+            logMessage(`Arquivo de importação selecionado: ${fileName}`);
+        });
+
+        $('#btn_import_person').on('click', function (e) {
+            e.preventDefault();
+            logMessage('Botão de importação clicado');
+            $('#form_import').slideToggle();
+        });
+
 		const check_course_tab = () => {
 			const certificateType = $('input[name="certificate_type"]:checked').val();
 			logMessage(`Verificando aba curso - Tipo de certificado: ${certificateType}`);
